@@ -1,6 +1,7 @@
 import StudentProfile from './components/StudentProfile';
 import AdminAnnouncements from './components/AdminAnnouncements';
 import AdminStudents from './components/AdminStudents';
+import StudentDashboard from './components/StudentDashboard';
 import AdminSettings from './components/AdminSettings';
 import CompanyApplications from './components/CompanyApplications';
 import CompanyProfile from './components/CompanyProfile';
@@ -40,6 +41,7 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           
           {/* THE STUDENT SITE (Upgraded to DashboardLayout) */}
+          <Route path="/student/dashboard" element={<StudentDashboard />} />
           <Route path="/student/opportunities" element={<Opportunities />} />
           <Route path="/student/chat" element={<Chatbot />} />
           <Route path="/student/applications" element={<StudentApplications />} />

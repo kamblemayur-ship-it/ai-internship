@@ -2,25 +2,57 @@ import React, { useState, useRef, useEffect } from 'react';
 import DashboardLayout from './DashboardLayout';
 
 export default function Chatbot() {
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      sender: 'allo',
-      text: 'Hi Rohit, I\'m Allo! 👋 Your personal career assistant.',
-      time: 'Just now'
-    },
-    {
-      id: 2,
-      sender: 'allo',
-      text: 'To get started, please upload your resume using the 📎 icon below, or ask me to find internships based on your profile.',
-      time: 'Just now'
-    }
-  ]);
-
+  // Start with an empty array so Allo doesn't speak until it knows the user's name
+  const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState('');
   const [isAlloTyping, setIsAlloTyping] = useState(false);
   const messagesEndRef = useRef(null);
-  
+
+  // FETCH REAL NAME ON LOAD AND INITIALIZE CHAT
+  useEffect(() => {
+    const initializeChat = async () => {
+      let firstName = 'Student'; // Fallback
+      const token = localStorage.getItem('token');
+
+      if (token) {
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          if (payload.userId) {
+            const response = await fetch(`http://localhost:5000/api/users/${payload.userId}`);
+            if (response.ok) {
+              const data = await response.json();
+              if (data.name) {
+                // Grab just the first name
+                firstName = data.name.split(' ')[0];
+              }
+            }
+          }
+        } catch (error) {
+          console.error("Failed to fetch user data for chat:", error);
+        }
+      }
+
+      // Now that we have the real name (or fallback), inject the welcome messages
+      setMessages([
+        {
+          id: 1,
+          sender: 'allo',
+          text: `Hi ${firstName}, I'm Allo! 👋 Your personal career assistant.`,
+          time: 'Just now'
+        },
+        {
+          id: 2,
+          sender: 'allo',
+          text: 'To get started, please upload your resume using the 📎 icon below, or ask me to find internships based on your profile.',
+          time: 'Just now'
+        }
+      ]);
+    };
+
+    initializeChat();
+  }, []); // Empty dependency array means this runs once when the component mounts
+
+  // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isAlloTyping]);

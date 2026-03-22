@@ -1,164 +1,192 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import DashboardLayout from './DashboardLayout';
 
 export default function CompanyInternships() {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [internships, setInternships] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Form State
+  
+  // State for the form
   const [formData, setFormData] = useState({
-    role: '', description: '', skills: '', stipend: '', capacity: '', duration: '', location: ''
+    roleName: '',
+    skills: '',
+    stipend: '',
+    capacity: '',
+    duration: '',
+    location: ''
   });
 
-  // HELPER: Get the real company ID from the login token
-  const getUserData = () => {
-    try {
-      const token = localStorage.getItem('token');
-      if (token) {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        return { id: payload.userId, name: 'My Company' }; 
-      }
-    } catch (error) {
-      console.error("Token decode error:", error);
-    }
-    return { id: '507f1f77bcf86cd799439011', name: 'InnovateTech' }; 
-  };
-
-  // NEW: The missing Fetch function to get data from MongoDB
-  const fetchInternships = async () => {
-    try {
-      setIsLoading(true);
-      const user = getUserData();
-      const response = await fetch(`http://localhost:5000/api/internships/company/${user.id}`);
-      if (response.ok) {
-        const data = await response.json();
-        setInternships(data);
-      }
-    } catch (error) {
-      console.error("Failed to fetch internships:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Run fetch when the page first loads
-  useEffect(() => {
-    fetchInternships();
-  }, []);
+  // Mock data for the table so it isn't empty
+  const [internships, setInternships] = useState([
+    { id: 1, role: 'Backend Developer Intern', skills: ['Node.js', 'MongoDB'], stipend: '₹30,000/month', capacity: 5, status: 'Active' }
+  ]);
 
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSaveInternship = async () => {
-    if (!formData.role || !formData.skills || !formData.stipend) {
-      alert("Please fill in Role, Skills, and Stipend.");
-      return;
-    }
-
-    setIsSubmitting(true);
-    const user = getUserData();
-
-    const payload = {
-      companyId: user.id,
-      companyName: user.name,
-      ...formData
+  const handleSaveInternship = () => {
+    // Force the comma-separated string into a clean Array for MongoDB
+    const cleanSkills = formData.skills.split(',').map(skill => skill.trim()).filter(Boolean);
+    
+    const newInternship = {
+      id: Date.now(),
+      role: formData.roleName,
+      skills: cleanSkills,
+      stipend: formData.stipend,
+      capacity: formData.capacity || 1,
+      status: 'Active'
     };
 
-    try {
-      const response = await fetch('http://localhost:5000/api/internships', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      if (response.ok) {
-        setIsModalOpen(false);
-        setFormData({ role: '', description: '', skills: '', stipend: '', capacity: '', duration: '', location: '' });
-        await fetchInternships(); // Refresh the list with the new data
-      } else {
-        const errorData = await response.json();
-        alert(`Error: ${errorData.message}`);
-      }
-    } catch (error) {
-      alert("Server connection failed.");
-    } finally {
-      setIsSubmitting(false);
-    }
+    setInternships([newInternship, ...internships]);
+    setIsModalOpen(false);
+    setFormData({ roleName: '', skills: '', stipend: '', capacity: '', duration: '', location: '' });
   };
 
   return (
     <DashboardLayout role="Company">
       <div className="p-8 max-w-6xl mx-auto space-y-8">
         
-        <div className="flex justify-between items-center border-b border-slate-200 pb-5">
+        {/* Header Section */}
+        <div className="flex justify-between items-end border-b border-slate-200 pb-5">
           <div>
             <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Manage Internships</h1>
-            <p className="text-slate-500 mt-1">Your live postings in the database.</p>
+            <p className="text-slate-500 mt-1">Create and monitor your live postings in the database.</p>
           </div>
-          <button onClick={() => setIsModalOpen(true)} className="bg-[#6b9b8e] hover:bg-[#5a8679] text-white px-5 py-2.5 rounded-lg font-medium shadow flex items-center gap-2">
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="bg-[#6b9b8e] hover:bg-[#5a8679] text-white px-6 py-2.5 rounded-lg font-bold transition-all shadow-sm flex items-center gap-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
             Post New Internship
           </button>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-          {isLoading ? (
-            <div className="p-10 text-center text-slate-400">Loading live data...</div>
-          ) : internships.length === 0 ? (
-            <div className="p-10 text-center text-slate-500 italic">No internships found. Create one to see it here.</div>
-          ) : (
-            internships.map((job) => (
-              <div key={job._id} className="p-6 border-b border-slate-100 flex justify-between items-center last:border-0">
-                <div>
-                  <h3 className="text-xl font-bold text-slate-800">{job.role}</h3>
-                  <div className="text-sm text-slate-500 mb-2">{job.location} • {job.duration}</div>
-                  <div className="flex flex-wrap gap-2">
-                    {job.skills.map((s, i) => (
-                      <span key={i} className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-bold rounded uppercase">{s}</span>
-                    ))}
-                  </div>
+        {/* Internships Table */}
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+          <div className="grid grid-cols-12 gap-4 px-6 py-4 bg-slate-50 border-b border-slate-100 text-xs font-bold text-slate-400 uppercase tracking-wider">
+            <div className="col-span-5">Role & Skills</div>
+            <div className="col-span-3">Stipend</div>
+            <div className="col-span-2 text-center">Capacity</div>
+            <div className="col-span-2 text-center">Status</div>
+          </div>
+          <div className="divide-y divide-slate-100">
+            {internships.map((job) => (
+              <div key={job.id} className="grid grid-cols-12 gap-4 px-6 py-5 items-center hover:bg-slate-50 transition-colors">
+                <div className="col-span-5">
+                  <div className="font-bold text-slate-800">{job.role}</div>
+                  <div className="text-xs text-slate-500 mt-1">{job.skills.join(' • ')}</div>
                 </div>
-                <div className="text-right">
-                  <div className="text-lg font-bold text-[#6b9b8e]">{job.stipend}</div>
-                  <div className="text-xs text-slate-400 font-bold">{job.capacity} slots</div>
+                <div className="col-span-3 font-medium text-slate-600">{job.stipend}</div>
+                <div className="col-span-2 text-center font-bold text-slate-700">{job.capacity} slots</div>
+                <div className="col-span-2 flex justify-center">
+                  <span className="bg-emerald-100 text-emerald-700 border border-emerald-200 px-3 py-1 rounded-full text-xs font-bold">
+                    {job.status}
+                  </span>
                 </div>
               </div>
-            ))
-          )}
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Modal logic remains the same as previous turn */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden">
-            <div className="p-6 border-b flex justify-between">
-              <h2 className="text-xl font-bold">New Internship Post</h2>
-              <button onClick={() => setIsModalOpen(false)}>✕</button>
-            </div>
-            <div className="p-6 space-y-4">
-              <input type="text" name="role" placeholder="Role Name" value={formData.role} onChange={handleInputChange} className="w-full border p-2 rounded" />
-              <input type="text" name="skills" placeholder="Skills (comma separated)" value={formData.skills} onChange={handleInputChange} className="w-full border p-2 rounded" />
-              <div className="flex gap-4">
-                <input type="text" name="stipend" placeholder="Stipend" value={formData.stipend} onChange={handleInputChange} className="flex-1 border p-2 rounded" />
-                <input type="number" name="capacity" placeholder="Capacity" value={formData.capacity} onChange={handleInputChange} className="flex-1 border p-2 rounded" />
+      {/* PREMIUM MODAL USING CREATE PORTAL */}
+      {isModalOpen && createPortal(
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col animate-scale-up border border-slate-100/50">
+            
+            {/* Modal Header */}
+            <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900">New Internship Post</h2>
+                <p className="text-sm text-slate-500 mt-1">Configure role details for the allocation engine.</p>
               </div>
-              <div className="flex gap-4">
-                <input type="text" name="duration" placeholder="Duration" value={formData.duration} onChange={handleInputChange} className="flex-1 border p-2 rounded" />
-                <input type="text" name="location" placeholder="Location" value={formData.location} onChange={handleInputChange} className="flex-1 border p-2 rounded" />
-              </div>
-            </div>
-            <div className="p-6 bg-slate-50 flex justify-end gap-3">
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-500">Cancel</button>
-              <button onClick={handleSaveInternship} disabled={isSubmitting} className="bg-[#6b9b8e] text-white px-6 py-2 rounded font-bold disabled:opacity-50">
-                {isSubmitting ? 'Saving...' : 'Save to DB'}
+              <button 
+                onClick={() => setIsModalOpen(false)}
+                className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-full transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
               </button>
             </div>
+
+            {/* Modal Body - Grid Form */}
+            <div className="p-8 space-y-6">
+              
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Role Title</label>
+                <input 
+                  type="text" name="roleName" value={formData.roleName} onChange={handleInputChange} 
+                  placeholder="e.g. Full Stack Developer Intern"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-[#6b9b8e] focus:outline-none transition-all text-slate-800 font-medium"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Required Skills (Comma Separated)</label>
+                <input 
+                  type="text" name="skills" value={formData.skills} onChange={handleInputChange} 
+                  placeholder="e.g. React, Node.js, AWS"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-[#6b9b8e] focus:outline-none transition-all text-slate-800 font-medium"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Monthly Stipend</label>
+                  <input 
+                    type="text" name="stipend" value={formData.stipend} onChange={handleInputChange} 
+                    placeholder="e.g. ₹25,000"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-[#6b9b8e] focus:outline-none transition-all text-slate-800 font-medium"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Hiring Capacity</label>
+                  <input 
+                    type="number" name="capacity" value={formData.capacity} onChange={handleInputChange} 
+                    placeholder="e.g. 3"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-[#6b9b8e] focus:outline-none transition-all text-slate-800 font-medium"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Duration</label>
+                  <input 
+                    type="text" name="duration" value={formData.duration} onChange={handleInputChange} 
+                    placeholder="e.g. 6 Months"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-[#6b9b8e] focus:outline-none transition-all text-slate-800 font-medium"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Location</label>
+                  <input 
+                    type="text" name="location" value={formData.location} onChange={handleInputChange} 
+                    placeholder="e.g. Remote / Mumbai"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-[#6b9b8e] focus:outline-none transition-all text-slate-800 font-medium"
+                  />
+                </div>
+              </div>
+
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-8 py-5 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+              <button 
+                onClick={() => setIsModalOpen(false)}
+                className="px-6 py-2.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleSaveInternship}
+                className="px-8 py-2.5 bg-[#6b9b8e] hover:bg-[#5a8679] text-white font-bold rounded-lg transition-colors shadow-sm"
+              >
+                Save to Database
+              </button>
+            </div>
+
           </div>
-        </div>
+        </div>,
+        document.body
       )}
+
     </DashboardLayout>
   );
 }

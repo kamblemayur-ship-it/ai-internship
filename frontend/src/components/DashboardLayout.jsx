@@ -1,28 +1,73 @@
-import React, { useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 
 export default function DashboardLayout({ children, role }) {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // DYNAMIC STATE: Check the high-speed cache first. 
+  // If empty, fall back to the role name (e.g., "Student") temporarily.
+  const [firstName, setFirstName] = useState(() => {
+    return localStorage.getItem('cachedFirstName') || role;
+  });
+
+  // FETCH REAL NAME FROM DATABASE (Only if not cached)
+  useEffect(() => {
+    const fetchUserName = async () => {
+      // If we already have the name saved in memory, stop here. 
+      // Do not waste database bandwidth or cause a UI flicker.
+      if (localStorage.getItem('cachedFirstName')) return;
+
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        
+        if (payload.userId) {
+          const response = await fetch(`http://localhost:5000/api/users/${payload.userId}`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.name) {
+              // Extract just the first name
+              const displayName = role === 'Company' ? data.name : data.name.split(' ')[0];
+              setFirstName(displayName);
+              localStorage.setItem('cachedFirstName', displayName);
+              setFirstName(fName);
+              // Save it to the browser's memory for the next tab click
+              localStorage.setItem('cachedFirstName', fName);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch user name:", error);
+      }
+    };
+
+    fetchUserName();
+  }, [role]);
 
   // THE LOGOUT ENGINE
   const handleLogout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('cachedFirstName'); // CRITICAL: Destroy the cache on logout
     navigate('/login');
   };
 
   // DYNAMIC NAVIGATION ENGINE
   const navigationLinks = {
     Student: [
+      { name: 'Dashboard', path: '/student/dashboard', icon: 'M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z' },
       { name: 'Opportunities', path: '/student/opportunities', icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
       { name: 'My Applications', path: '/student/applications', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
-      { name: 'Ask Allo', path: '/student/chat', icon: 'M9.663 17h4.673M12 3v1...' },
+      { name: 'Ask Allo', path: '/student/chat', icon: 'M9.663 17h4.673M12 3v1M12 3v1' },
       { name: 'Profile', path: '/student/profile', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
     ],
-   Company: [
-  { name: 'Dashboard', path: '/company/dashboard', icon: '...' },
-  { name: 'Post Internship', path: '/company/internships', icon: '...' },
-  { name: 'Applicants', path: '/company/applicants', icon: '...' },
-],
+    Company: [
+      { name: 'Dashboard', path: '/company/dashboard', icon: 'M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z' },
+      { name: 'Post Internship', path: '/company/internships', icon: 'M12 4v16m8-8H4' },
+      { name: 'Applicants', path: '/company/applicants', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' },
+    ],
     Admin: [
       { name: 'Dashboard', path: '/admin/dashboard', icon: 'M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z' },
       { name: 'View Students', path: '/admin/students', icon: 'M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z' },
@@ -79,7 +124,7 @@ export default function DashboardLayout({ children, role }) {
           <h2 className="text-xl font-semibold text-slate-900">{role} Dashboard</h2>
           
           <div className="flex items-center gap-6">
-            <span className="text-sm text-slate-500">Welcome, {role}</span>
+            <span className="text-sm font-medium text-slate-500">Welcome, {firstName}</span>
             <button 
               onClick={handleLogout}
               className="flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-red-600 transition-colors"
@@ -93,7 +138,7 @@ export default function DashboardLayout({ children, role }) {
         </header>
 
         {/* Page Content Render Area */}
-        <main className="flex-1">
+        <main key={location.pathname} className="flex-1 animate-fade-in">
           {children}
         </main>
       </div>

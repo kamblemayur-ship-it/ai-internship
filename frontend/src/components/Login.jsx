@@ -75,7 +75,7 @@ export default function Login() {
       if (data.token) {
         localStorage.setItem('token', data.token);
         
-        if (role === 'Student') navigate('/student/opportunities');
+        if (role === 'Student') navigate('/student/dashboard');
         else if (role === 'Company') navigate('/company/dashboard');
         else if (role === 'Admin') navigate('/admin/dashboard');
       }
