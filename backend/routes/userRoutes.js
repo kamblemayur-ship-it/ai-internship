@@ -13,7 +13,6 @@ const sanitizeSkills = (skillsInput) => {
     .filter(skill => skill.length > 0 && skill.length < 50); // Prevent 10,000-character spam
 };
 
-
 // POST: Register a new user
 router.post('/register', async (req, res) => {
   try {
@@ -22,7 +21,8 @@ router.post('/register', async (req, res) => {
     // 1. The Gatekeeper: Clean the skills array immediately
     const cleanSkills = sanitizeSkills(skills);
 
-    if (role === 'student' && cleanSkills.length === 0) {
+    // BLIND SPOT FIX: Converted role to lowercase before checking to match the frontend's capitalized strings.
+    if (role && role.toLowerCase() === 'student' && cleanSkills.length === 0) {
       return res.status(400).json({ message: 'Students must provide at least one valid technical skill.' });
     }
 
@@ -39,9 +39,9 @@ router.post('/register', async (req, res) => {
       name, 
       email, 
       password: hashedPassword, 
-      role, 
+      role: role.toLowerCase(), // <-- FORCED LOWERCASE
       skills: cleanSkills,
-      status: 'Available' // Ensure new users are available for allocation
+      status: 'Available'
     });
     await user.save();
     
@@ -54,16 +54,30 @@ router.post('/register', async (req, res) => {
 // POST: Login a user
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    // THE FIX: We are now extracting 'role' from the frontend request
+    const { email, password, role } = req.body;
+
+    // Reject incomplete requests immediately
+    if (!email || !password || !role) {
+        return res.status(400).json({ message: 'Email, password, and role are required.' });
+    }
 
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ message: 'Invalid credentials.' });
+
+    // THE SECURITY PATCH
+    // Enforcing strict isolation. A Company cannot log into the Student portal.
+    // We use toLowerCase() on both sides to prevent casing typos from locking legitimate users out.
+    if (user.role.toLowerCase() !== role.toLowerCase()) {
+      return res.status(403).json({ 
+        message: `Access denied. This email is registered as a ${user.role}, not a ${role}.` 
+      });
+    }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ message: 'Invalid credentials.' });
 
     const payload = { userId: user._id, role: user.role };
-    // Make sure your .env has JWT_SECRET defined!
     const token = jwt.sign(payload, process.env.JWT_SECRET || 'fallback_secret', { expiresIn: '1h' });
 
     res.status(200).json({ 
