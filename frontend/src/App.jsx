@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import Register from './components/Register';
 
 // --- PUBLIC ROUTES ---
 import LandingPage from './components/LandingPage';
@@ -42,6 +43,7 @@ export default function App() {
           {/* PUBLIC */}
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
           
           {/* THE STUDENT SITE */}
           <Route path="/student/dashboard" element={<StudentDashboard />} />

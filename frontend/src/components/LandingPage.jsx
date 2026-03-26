@@ -12,7 +12,7 @@ export default function LandingPage() {
             <div className="w-8 h-8 bg-[#6b9b8e] rounded-lg flex items-center justify-center">
               <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
             </div>
-            <span className="text-xl font-black text-white tracking-tight">AI Allocation</span>
+            <span className="text-xl font-black text-white tracking-tight">AI Smart Allocation</span>
           </div>
           
           <div className="flex items-center gap-6">
@@ -20,7 +20,7 @@ export default function LandingPage() {
               Log In
             </Link>
             <Link to="/register" className="bg-white text-slate-900 hover:bg-slate-100 px-5 py-2.5 rounded-full text-sm font-bold transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
-              Sign Up Free
+              Sign Up
             </Link>
           </div>
         </div>

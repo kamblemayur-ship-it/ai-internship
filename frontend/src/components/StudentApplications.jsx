@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import DashboardLayout from './DashboardLayout';
 
@@ -6,12 +6,17 @@ export default function StudentApplications() {
   const [filter, setFilter] = useState('All');
   const [selectedApp, setSelectedApp] = useState(null);
 
-  const applications = [
+  // Default hardcoded applications
+  const defaultApplications = [
     { id: 1, role: 'Data Analyst Intern', company: 'FinSecure Capital', date: '2026-03-15', status: 'Shortlisted', stipend: '₹25,000/month', duration: '3 Months', matchScore: 92, nextSteps: 'The company is reviewing your profile. Keep an eye on your email for an interview invite.' },
-    { id: 2, role: 'Backend Developer Intern', company: 'InnovateTech Solutions', date: '2026-03-22', status: 'Pending', stipend: '₹30,000/month', duration: '6 Months', matchScore: 88, nextSteps: 'Your application has been received and is waiting for initial AI screening.' },
-    { id: 3, role: 'Frontend Developer Intern', company: 'TechNova', date: '2026-02-10', status: 'Rejected', stipend: '₹15,000/month', duration: '3 Months', matchScore: 65, nextSteps: 'Unfortunately, the company moved forward with other candidates. Keep applying!' },
-    { id: 4, role: 'Cloud Engineer Intern', company: 'QuantumCore AI', date: '2026-03-01', status: 'Selected', stipend: '₹45,000/month', duration: '6 Months', matchScore: 96, nextSteps: 'Congratulations! HR will contact you shortly with the official offer letter.' }
+    { id: 2, role: 'Backend Developer Intern', company: 'InnovateTech Solutions', date: '2026-03-22', status: 'Pending', stipend: '₹30,000/month', duration: '6 Months', matchScore: 88, nextSteps: 'Your application has been received and is waiting for initial AI screening.' }
   ];
+
+  // STATE: Merge the default ones with any new ones passed over from the Chatbot via LocalStorage
+  const [applications, setApplications] = useState(() => {
+    const chatbotApps = JSON.parse(localStorage.getItem('alloCrossPageApps') || '[]');
+    return [...chatbotApps, ...defaultApplications];
+  });
 
   const filteredApps = filter === 'All' ? applications : applications.filter(app => app.status === filter);
 
