@@ -207,7 +207,7 @@ export default function Chatbot() {
 
   return (
     <DashboardLayout role="Student">
-      <div className="p-6 max-w-7xl mx-auto h-[calc(100vh-80px)] flex flex-col md:flex-row gap-6">
+      <div className="p-6 max-w-7xl w-full mx-auto h-full flex flex-col md:flex-row gap-6">
         
         {/* LEFT SIDEBAR: CHAT HISTORY */}
         <div className="w-full md:w-80 bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col overflow-hidden flex-shrink-0 animate-fade-in">
@@ -285,10 +285,10 @@ export default function Chatbot() {
                           return (
                             // THE MODAL TRIGGER: The whole card is now clickable
                             <div 
-                              key={job.id} 
-                              onClick={() => setSelectedJobDetails(job)}
-                              className="bg-slate-50 p-4 rounded-xl border border-slate-100 hover:border-[#6b9b8e]/30 hover:shadow-md transition-all cursor-pointer group"
-                            >
+                            key={job.id} 
+                            onClick={() => setSelectedJobDetails(job)}
+                            className="bg-slate-50 p-4 rounded-xl border border-slate-100 cursor-pointer group transition-all duration-300 ease-in-out hover:-translate-y-1.5 hover:shadow-xl hover:border-[#6b9b8e]/50"
+>
                               <div className="flex justify-between items-start mb-2">
                                 <div>
                                   <h5 className="font-bold text-slate-900 group-hover:text-[#6b9b8e] transition-colors">{job.role}</h5>

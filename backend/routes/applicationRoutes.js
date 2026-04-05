@@ -1,104 +1,81 @@
 const express = require('express');
 const router = express.Router();
 const Application = require('../models/Application');
-const Job = require('../models/Job');
-const User = require('../models/User');
+const Internship = require('../models/Internship');
+const { protect } = require('../middleware/authMiddleware');
+const { runEngineForStudent } = require('../services/allocationEngine');
 
-// POST: Student applies to a job
-router.post('/apply', async (req, res) => {
+// POST: Apply for an internship
+router.post('/apply/:jobId', protect, async (req, res) => {
   try {
-    const { jobId, studentId } = req.body;
-
-    // Fetch the entities to calculate match score securely on the backend
-    const job = await Job.findById(jobId);
-    const student = await User.findById(studentId);
-
-    if (!job || !student) {
-      return res.status(404).json({ message: 'Job or Student not found.' });
+    // Security Check
+    if (req.user.role !== 'Student') {
+      return res.status(403).json({ message: 'Only students can apply for internships.' });
     }
 
-    // Check if already applied to prevent duplicates
-    const existingApp = await Application.findOne({ jobId, studentId });
-    if (existingApp) {
-      return res.status(400).json({ message: 'You have already applied to this internship.' });
+    const jobId = req.params.jobId;
+    const student = req.user;
+
+    // Job Validation
+    const job = await Internship.findById(jobId);
+    if (!job) {
+      return res.status(404).json({ message: 'Internship not found.' });
+    }
+    if (job.status !== 'Active') {
+      return res.status(400).json({ message: 'This internship is no longer accepting applications.' });
     }
 
-    // Calculate baseline Match Score (Keyword overlap)
-    const matches = job.requiredSkills.filter(s => 
-      student.skills.map(us => us.toLowerCase()).includes(s.toLowerCase())
-    );
-    const matchScore = job.requiredSkills.length > 0 
-      ? Math.round((matches.length / job.requiredSkills.length) * 100) 
-      : 0;
+    // Duplicate Check
+    const existingApplication = await Application.findOne({ student: student._id, job: jobId });
+    if (existingApplication) {
+      return res.status(400).json({ message: 'You have already applied for this internship.' });
+    }
 
-    const newApplication = new Application({
-      jobId,
-      studentId,
-      companyId: job.companyId,
-      matchScore
+    // Run the Engine for this specific job to get the official frozen Match Score
+    const engineResult = runEngineForStudent(student, [job]);
+    const finalScore = engineResult.length > 0 ? engineResult[0].matchScore : 0;
+
+    // Create the Application Receipt
+    const application = new Application({
+      student: student._id,
+      job: job._id,
+      company: job.companyId, 
+      matchScore: finalScore
     });
 
-    await newApplication.save();
-    res.status(201).json({ message: 'Application submitted successfully.', application: newApplication });
+    await application.save();
+
+    // Increment the applicant counter on the Internship document
+    job.applicants += 1;
+    await job.save();
+
+    res.status(201).json({ 
+      message: 'Application submitted successfully.',
+      applicationId: application._id,
+      matchScore: finalScore
+    });
+
   } catch (error) {
-    // 11000 is MongoDB's duplicate key error code (from our schema index)
     if (error.code === 11000) {
-      return res.status(400).json({ message: 'You have already applied to this internship.' });
+      return res.status(400).json({ message: 'Duplicate application detected.' });
     }
-    res.status(500).json({ message: 'Error submitting application.', error: error.message });
+    console.error("🚨 APPLICATION FAILURE:", error);
+    res.status(500).json({ message: `Engine Failure: ${error.message}` });
   }
 });
 
-// GET: Company fetches their inbox (All applications for their jobs)
-router.get('/company/:companyId', async (req, res) => {
+// GET: Fetch applications for a specific student
+router.get('/student', protect, async (req, res) => {
   try {
-    // We use .populate() to pull in the actual Student and Job details, not just IDs
-    const applications = await Application.find({ companyId: req.params.companyId })
-      .populate('studentId', 'name email skills')
-      .populate('jobId', 'title')
-      .sort({ matchScore: -1 }); // Rank highest matches first
-
-    res.status(200).json(applications);
-  } catch (error) {
-    res.status(500).json({ message: 'Error fetching applications.', error: error.message });
-  }
-});
-
-// PUT: Company approves or rejects an application
-router.put('/:applicationId/status', async (req, res) => {
-  try {
-    const { status } = req.body; // 'Approved' or 'Rejected'
+    if (req.user.role !== 'Student') return res.status(403).json({ message: 'Access denied.' });
     
-    if (!['Approved', 'Rejected'].includes(status)) {
-      return res.status(400).json({ message: 'Invalid status update.' });
-    }
-
-    const application = await Application.findByIdAndUpdate(
-      req.params.applicationId,
-      { status },
-      { new: true }
-    );
-
-    if (!application) {
-      return res.status(404).json({ message: 'Application not found.' });
-    }
-
-    res.status(200).json({ message: `Application ${status.toLowerCase()} successfully.`, application });
-  } catch (error) {
-    res.status(500).json({ message: 'Error updating application status.', error: error.message });
-  }
-});
-
-// GET: Student fetches their own applications (To check if Approved/Rejected)
-router.get('/student/:studentId', async (req, res) => {
-  try {
-    const applications = await Application.find({ studentId: req.params.studentId })
-      .populate('jobId', 'title companyName') // Pull in the job title and company name
+    const applications = await Application.find({ student: req.user._id })
+      .populate('job', 'role companyName location stipend')
       .sort({ appliedAt: -1 });
-
+      
     res.status(200).json(applications);
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching your applications.', error: error.message });
+    res.status(500).json({ message: 'Failed to fetch applications.', error: error.message });
   }
 });
 

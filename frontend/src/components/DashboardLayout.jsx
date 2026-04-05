@@ -5,39 +5,39 @@ export default function DashboardLayout({ children, role }) {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // DYNAMIC STATE: Check the high-speed cache first. 
-  // If empty, fall back to the role name (e.g., "Student") temporarily.
   const [firstName, setFirstName] = useState(() => {
-    return localStorage.getItem('cachedFirstName') || role;
+    const cached = localStorage.getItem('cachedFirstName');
+    return cached && cached !== 'undefined' ? cached : role;
   });
 
-  // FETCH REAL NAME FROM DATABASE (Only if not cached)
-  useEffect(() => {
+useEffect(() => {
     const fetchUserName = async () => {
-      // If we already have the name saved in memory, stop here. 
-      // Do not waste database bandwidth or cause a UI flicker.
-      if (localStorage.getItem('cachedFirstName')) return;
+      // 1. Check cache first to avoid unnecessary API calls
+      const cached = localStorage.getItem('cachedFirstName');
+      if (cached && cached !== 'undefined') return;
 
       const token = localStorage.getItem('token');
       if (!token) return;
 
       try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        
-        if (payload.userId) {
-          const response = await fetch(`http://localhost:5000/api/users/${payload.userId}`);
-          if (response.ok) {
-            const data = await response.json();
-            if (data.name) {
-              // Extract just the first name
-              const displayName = role === 'Company' ? data.name : data.name.split(' ')[0];
-              setFirstName(displayName);
-              localStorage.setItem('cachedFirstName', displayName);
-              setFirstName(fName);
-              // Save it to the browser's memory for the next tab click
-              localStorage.setItem('cachedFirstName', fName);
-            }
+        // 2. Call the new /me endpoint (No need to decode the ID manually!)
+        const response = await fetch(`http://localhost:5000/api/users/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
           }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.name) {
+            // 3. Logic to extract first name
+            const displayName = role === 'Company' ? data.name : data.name.split(' ')[0];
+            setFirstName(displayName);
+            localStorage.setItem('cachedFirstName', displayName);
+          }
+        } else if (response.status === 401) {
+          // If token is expired/invalid, log them out
+          handleLogout();
         }
       } catch (error) {
         console.error("Failed to fetch user name:", error);
@@ -47,14 +47,12 @@ export default function DashboardLayout({ children, role }) {
     fetchUserName();
   }, [role]);
 
-  // THE LOGOUT ENGINE
   const handleLogout = () => {
     localStorage.removeItem('token');
-    localStorage.removeItem('cachedFirstName'); // CRITICAL: Destroy the cache on logout
+    localStorage.removeItem('cachedFirstName');
     navigate('/login');
   };
 
-  // DYNAMIC NAVIGATION ENGINE
   const navigationLinks = {
     Student: [
       { name: 'Dashboard', path: '/student/dashboard', icon: 'M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z' },
@@ -80,24 +78,25 @@ export default function DashboardLayout({ children, role }) {
   const links = navigationLinks[role] || [];
 
   return (
-    <div className="min-h-screen bg-slate-50 flex font-sans">
+    // STRICT h-screen prevents global scrolling
+    <div className="flex w-full h-screen relative overflow-hidden">
       
       {/* SIDEBAR */}
-      <aside className={`w-64 bg-white border-r border-slate-100 flex flex-col p-6 space-y-10 transition-transform duration-300`}>
-        <div className="text-2xl font-extrabold text-[#6b9b8e] tracking-tight">AI Allocation</div>
+      <aside className="w-64 flex-shrink-0 h-full flex flex-col p-6 space-y-10 z-20 bg-white/40 backdrop-blur-xl border-r border-white/60 shadow-[4px_0_24px_-12px_rgba(0,0,0,0.1)]">
+        <div className="text-2xl font-extrabold text-[#6b9b8e] tracking-tight drop-shadow-sm">AI Allocation</div>
 
         <nav className="flex-1 space-y-3">
           {links.map((link) => (
             <NavLink 
               key={link.name} 
               to={link.path}
-              className={({ isActive }) => `flex items-center gap-3.5 px-4 py-3 rounded-lg text-sm font-medium transition-all group ${
+              className={({ isActive }) => `flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-bold transition-all group ${
                 isActive 
-                  ? 'bg-emerald-50 text-emerald-700 shadow-inner' 
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                  ? 'bg-white/60 text-emerald-800 shadow-[inset_0_1px_1px_rgba(255,255,255,1),0_2px_4px_rgba(0,0,0,0.05)] border border-white/50' 
+                  : 'text-slate-600 hover:bg-white/40 hover:text-slate-900 border border-transparent'
               }`}
             >
-              <svg className={`w-5 h-5 ${role === 'Student' && 'text-emerald-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className={`w-5 h-5 ${role === 'Student' && 'text-[#6b9b8e]'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={link.icon}></path>
               </svg>
               {link.name}
@@ -105,29 +104,31 @@ export default function DashboardLayout({ children, role }) {
           ))}
         </nav>
 
-        <div className="pt-6 border-t border-slate-100 text-sm text-slate-500 flex items-center gap-3">
-          <div className="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-400">
+        <div className="pt-6 border-t border-slate-300/30 text-sm text-slate-500 flex items-center gap-3">
+          <div className="w-9 h-9 bg-white/60 border border-white/80 rounded-full flex items-center justify-center font-bold text-slate-600 shadow-sm">
             {role ? role[0] : '?'}
           </div>
           <div>
-            <div className="font-semibold text-slate-800">Logged in as:</div>
-            <div className="font-mono text-xs">{role || 'Unknown'}</div>
+            <div className="font-bold text-slate-800">Logged in as:</div>
+            <div className="font-mono text-xs font-semibold text-slate-500">{role || 'Unknown'}</div>
           </div>
         </div>
       </aside>
 
-      {/* MAIN CONTENT AREA */}
-      <div className="flex-1 flex flex-col">
+      {/* MAIN CONTENT WRAPPER */}
+      <div className="flex-1 flex flex-col relative z-10 h-full">
         
-        {/* TOP NAVBAR */}
-        <header className="h-20 bg-white border-b border-slate-100 flex items-center justify-between px-10 sticky top-0 z-10 shadow-sm shadow-slate-50">
-          <h2 className="text-xl font-semibold text-slate-900">{role} Dashboard</h2>
+        {/* ABSOLUTE GLASS HEADER */}
+        <header className="absolute top-0 w-full h-20 flex items-center justify-between px-10 z-30 bg-white/40 backdrop-blur-xl border-b border-white/60 shadow-[0_4px_24px_-12px_rgba(0,0,0,0.1)]">
+          <h2 className="text-xl font-bold text-slate-900">{role} Dashboard</h2>
           
           <div className="flex items-center gap-6">
-            <span className="text-sm font-medium text-slate-500">Welcome, {firstName}</span>
+            <span className="text-sm font-bold text-slate-600 bg-white/40 px-4 py-1.5 rounded-full border border-white/50 shadow-sm">
+              Welcome, {firstName}
+            </span>
             <button 
               onClick={handleLogout}
-              className="flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-red-600 transition-colors"
+              className="flex items-center gap-2 text-sm font-bold text-slate-600 hover:text-red-600 transition-colors p-2 hover:bg-white/40 rounded-lg"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
@@ -137,8 +138,8 @@ export default function DashboardLayout({ children, role }) {
           </div>
         </header>
 
-        {/* Page Content Render Area */}
-        <main key={location.pathname} className="flex-1 animate-fade-in">
+        {/* SCROLLABLE MAIN AREA (pt-20 pushes content down so it doesn't hide behind the header instantly) */}
+        <main key={location.pathname} className="flex-1 h-full overflow-y-auto pt-20 relative z-0 animate-fade-in">
           {children}
         </main>
       </div>

@@ -106,7 +106,7 @@ export default function Register() {
                 value={formData.name}
                 onChange={handleChange}
                 className="appearance-none block w-full px-4 py-3 border border-slate-200 rounded-xl shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#6b9b8e] focus:border-transparent sm:text-sm font-medium transition-all bg-slate-50 focus:bg-white"
-                placeholder={activeTab === 'Company' ? "e.g. InnovateTech" : "e.g. Ishan Gupta"}
+                placeholder={activeTab === 'Company' ? "e.g. InnovateTech" : "e.g. Rohit Chadda"}
               />
             </div>
 

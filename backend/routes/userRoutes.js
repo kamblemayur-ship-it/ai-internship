@@ -1,169 +1,89 @@
 const express = require('express');
 const router = express.Router();
-const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-  
-// Strict Data Sanitization Helper
-const sanitizeSkills = (skillsInput) => {
-  if (!Array.isArray(skillsInput)) return [];
-  
-  return skillsInput
-    .map(skill => typeof skill === 'string' ? skill.trim() : '')
-    .filter(skill => skill.length > 0 && skill.length < 50); // Prevent 10,000-character spam
-};
+const { protect } = require('../middleware/authMiddleware'); // IMPORTED
+
+// --- PUBLIC ROUTES ---
 
 // POST: Register a new user
 router.post('/register', async (req, res) => {
   try {
+    console.log("\n📥 REGISTRATION PAYLOAD RECEIVED:", req.body);
     const { name, email, password, role, skills } = req.body;
     
-    // 1. The Gatekeeper: Clean the skills array immediately
-    const cleanSkills = sanitizeSkills(skills);
-
-    // BLIND SPOT FIX: Converted role to lowercase before checking to match the frontend's capitalized strings.
-    if (role && role.toLowerCase() === 'student' && cleanSkills.length === 0) {
-      return res.status(400).json({ message: 'Students must provide at least one valid technical skill.' });
+    if (!name || !email || !password || !role) {
+      return res.status(400).json({ message: 'All fields are required.' });
     }
 
-    // 2. Check if user exists
-    let user = await User.findOne({ email });
+    const formattedRole = role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
+    let cleanSkills = Array.isArray(skills) ? skills.map(s => String(s).trim()).filter(s => s.length > 0) : [];
+
+    if (formattedRole === 'Student' && cleanSkills.length === 0) {
+      return res.status(400).json({ message: 'Students must provide technical skills.' });
+    }
+
+    let user = await User.findOne({ email: email.toLowerCase() });
     if (user) return res.status(400).json({ message: 'User already exists.' });
 
-    // 3. Hash the password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    // 4. Save the new user with CLEAN skills
-    user = new User({ 
-      name, 
-      email, 
-      password: hashedPassword, 
-      role: role.toLowerCase(), // <-- FORCED LOWERCASE
-      skills: cleanSkills,
-      status: 'Available'
-    });
+    user = new User({ name, email: email.toLowerCase(), password, role: formattedRole, skills: cleanSkills });
     await user.save();
     
     res.status(201).json({ message: 'User registered successfully.' });
   } catch (error) {
-    res.status(500).json({ message: 'Server error during registration.', error: error.message });
+    res.status(500).json({ message: `Engine Failure: ${error.message}` });
   }
 });
 
 // POST: Login a user
 router.post('/login', async (req, res) => {
   try {
-    // THE FIX: We are now extracting 'role' from the frontend request
     const { email, password, role } = req.body;
+    if (!email || !password || !role) return res.status(400).json({ message: 'Missing credentials.' });
 
-    // Reject incomplete requests immediately
-    if (!email || !password || !role) {
-        return res.status(400).json({ message: 'Email, password, and role are required.' });
-    }
-
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
     if (!user) return res.status(400).json({ message: 'Invalid credentials.' });
 
-    // THE SECURITY PATCH
-    // Enforcing strict isolation. A Company cannot log into the Student portal.
-    // We use toLowerCase() on both sides to prevent casing typos from locking legitimate users out.
+    // Case-insensitive role check
     if (user.role.toLowerCase() !== role.toLowerCase()) {
-      return res.status(403).json({ 
-        message: `Access denied. This email is registered as a ${user.role}, not a ${role}.` 
-      });
+      return res.status(403).json({ message: `Role mismatch. Registered as ${user.role}.` });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
+    const isMatch = await user.matchPassword(password);
     if (!isMatch) return res.status(400).json({ message: 'Invalid credentials.' });
 
-    const payload = { userId: user._id, role: user.role };
-    const token = jwt.sign(payload, process.env.JWT_SECRET || 'fallback_secret', { expiresIn: '1h' });
-
-    res.status(200).json({ 
-        token, 
-        user: { id: user._id, name: user.name, role: user.role, skills: user.skills } 
-    });
+    const token = jwt.sign({ userId: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    res.status(200).json({ token, user: { id: user._id, name: user.name, role: user.role, skills: user.skills } });
   } catch (error) {
-    res.status(500).json({ message: 'Server error during login.', error: error.message });
+    res.status(500).json({ message: `Login Failure: ${error.message}` });
   }
 });
 
-// GET: Fetch all users
-router.get('/', async (req, res) => {
+// --- PROTECTED ROUTES (Requires Token) ---
+
+/**
+ * @desc    Get current user profile
+ * @route   GET /api/users/me
+ * @access  Private
+ */
+router.get('/me', protect, async (req, res) => {
   try {
-    const users = await User.find().select('-password');
-    res.status(200).json(users);
+    // req.user is attached by the protect middleware
+    res.status(200).json(req.user);
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching users', error: error.message });
+    res.status(500).json({ message: 'Error fetching self profile' });
   }
 });
 
-// PUT: Update user profile (skills)
-router.put('/:id', async (req, res) => {
+// GET: Fetch specific user profile (Now Protected)
+router.get('/:id', protect, async (req, res) => {
   try {
-    const { skills } = req.body;
-    
-    // The Gatekeeper: Clean the incoming update
-    const cleanSkills = sanitizeSkills(skills);
-
-    if (cleanSkills.length === 0) {
-      return res.status(400).json({ message: 'Cannot update profile with empty skills.' });
-    }
-
-    const updatedUser = await User.findByIdAndUpdate(
-      req.params.id, 
-      { skills: cleanSkills }, 
-      { new: true, runValidators: true } 
-    ).select('-password');
-
-    if (!updatedUser) {
-      return res.status(404).json({ message: 'User not found.' });
-    }
-
-    res.status(200).json(updatedUser);
-  } catch (error) {
-    res.status(500).json({ message: 'Error updating profile', error: error.message });
-  }
-});
-
-// POST: Allocate (Hire) a student
-router.post('/allocate/:studentId', async (req, res) => {
-  try {
-    const { companyName } = req.body;
-    
-    const student = await User.findById(req.params.studentId);
-    
-    if (!student) {
-      return res.status(404).json({ message: 'Student not found in database.' });
-    }
-
-    // The Lock: Race Condition Prevention
-    if (student.status !== 'Available') {
-      return res.status(400).json({ 
-        message: `Allocation rejected. Student is already ${student.status}.` 
-      });
-    }
-
-    student.status = `Allocated to ${companyName}`;
-    const updatedStudent = await student.save();
-
-    res.status(200).json({ message: 'Allocation successful.', student: updatedStudent });
-  } catch (error) {
-    res.status(500).json({ message: 'Failed to allocate student.', error: error.message });
-  }
-});
-
-// GET: Fetch fresh user profile (to check status)
-router.get('/:id', async (req, res) => {
-  try {
-    const user = await User.findById(req.params.id).select('-password');
+    const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ message: 'User not found.' });
-    
     res.status(200).json(user);
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching profile.', error: error.message });
+    res.status(500).json({ message: 'Error fetching profile.' });
   }
 });
 
-module.exports = router;
+module.exports = router;  
