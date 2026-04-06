@@ -1,155 +1,76 @@
-import React, { useState } from 'react';
-import DashboardLayout from './DashboardLayout';
+import React, { useState, useEffect } from 'react';
 
 export default function CompanyProfile() {
-  const [isEditing, setIsEditing] = useState(false);
-  
-  // Mock Data matching your screenshot
-  const [profile, setProfile] = useState({
-    companyName: "InnovateTech Solutions",
-    officialEmail: "hr@innovatetech.com",
-    industry: "Information Technology",
-    hrContact: "Ms. Priya Singh",
-    website: "https://innovatetech.com",
-    description: "A leading provider of cloud-based solutions, driving innovation in the tech industry.",
-    capacity: "10"
-  });
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const handleChange = (e) => {
-    setProfile({ ...profile, [e.target.name]: e.target.value });
-  };
+  // REALITY CHECK: Fetching actual company user data from MongoDB
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
 
-  const handleSave = () => {
-    console.log("Saving company profile to backend:", profile);
-    setIsEditing(false);
-  };
+        const response = await fetch('http://localhost:5000/api/users/me', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setProfile(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch profile:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, []);
+
+  if (loading) return <div className="p-10 font-bold text-slate-500 animate-pulse">Loading Organization Data...</div>;
+  if (!profile) return <div className="p-10 text-red-500">Error loading profile. Please log in again.</div>;
 
   return (
-    <DashboardLayout role="Company">
-      <div className="p-8 max-w-6xl mx-auto space-y-8">
+    // BLIND SPOT FIXED: No <DashboardLayout> here. Just the raw container.
+    <div className="p-8 max-w-4xl mx-auto space-y-8 animate-fade-in relative z-10">
+      
+      <div className="border-b border-white/30 pb-5">
+        <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Organization Profile</h1>
+        <p className="text-slate-600 mt-1 font-medium">Manage your company's presence on the allocation network.</p>
+      </div>
+
+      <div className="bg-white/60 backdrop-blur-xl border border-white/60 p-8 rounded-3xl shadow-sm flex flex-col md:flex-row gap-8 items-start">
         
-        {/* Header Section */}
-        <div className="border-b border-slate-200 pb-5 flex justify-between items-end">
+        {/* Avatar */}
+        <div className="w-24 h-24 bg-slate-900 rounded-2xl flex items-center justify-center text-3xl font-black text-white shadow-inner shrink-0">
+          {profile.name ? profile.name[0].toUpperCase() : '?'}
+        </div>
+        
+        {/* Details */}
+        <div className="flex-1 space-y-4 w-full">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Company Profile</h1>
-            <p className="text-slate-500 mt-1">Manage your corporate details and internship capacity.</p>
+            <h2 className="text-2xl font-bold text-slate-900">{profile.name}</h2>
+            <p className="text-slate-500 font-medium">{profile.email}</p>
+            <div className="mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-600 border border-slate-200">
+              Account Type: {profile.role}
+            </div>
           </div>
-        </div>
-
-        {/* Completion Bar */}
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm font-semibold text-slate-600">
-            <span>Profile Completion</span>
-            <span>100%</span>
-          </div>
-          <div className="w-full bg-slate-200 rounded-full h-2">
-            <div className="bg-[#6b9b8e] h-2 rounded-full w-full"></div>
-          </div>
-        </div>
-
-        {/* Main Profile Card */}
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden relative">
           
-          <div className="absolute top-6 right-6">
-            <button 
-              onClick={() => isEditing ? handleSave() : setIsEditing(true)}
-              className={`px-5 py-2 rounded-lg font-medium shadow-sm transition-all flex items-center gap-2 ${
-                isEditing ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-[#6b9b8e] hover:bg-[#5a8679] text-white'
-              }`}
-            >
-              {isEditing ? 'Save Changes' : 'Edit Profile'}
-            </button>
-          </div>
-
-          <div className="p-8 border-b border-slate-100">
-            <h3 className="text-xl font-bold text-slate-800 mb-8">Company Information</h3>
+          {/* Organization Info Display */}
+          <div className="pt-6 border-t border-slate-200/50">
+            <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4 flex items-center gap-2">
+              <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+              Network Status
+            </h3>
             
-            <div className="flex flex-col md:flex-row gap-12">
-              
-              {/* Left Column: Avatar & Status */}
-              <div className="flex flex-col items-center space-y-4">
-                <div className="w-32 h-32 rounded-full bg-slate-200 overflow-hidden border-4 border-white shadow-lg">
-                  {/* Placeholder for Company Logo */}
-                  <img src="https://via.placeholder.com/150/cbd5e1/64748b?text=Logo" alt="Company Logo" className="w-full h-full object-cover" />
-                </div>
-                <div className="text-center">
-                  <div className="text-sm text-slate-500 font-medium mb-1">Account Status</div>
-                  <span className="bg-emerald-100 text-emerald-700 text-xs font-bold px-3 py-1 rounded-full">Active</span>
-                </div>
-              </div>
-
-              {/* Right Column: Form Grid */}
-              <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6">
-                
-                <div>
-                  <label className="block text-sm font-medium text-slate-500 mb-1.5">Company Name</label>
-                  {isEditing ? (
-                    <input type="text" name="companyName" value={profile.companyName} onChange={handleChange} className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-[#6b9b8e] focus:outline-none" />
-                  ) : (
-                    <div className="text-slate-900 font-medium px-4 py-2 bg-slate-50 rounded-lg border border-slate-100">{profile.companyName}</div>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-500 mb-1.5">Official Email</label>
-                  {isEditing ? (
-                    <input type="email" name="officialEmail" value={profile.officialEmail} onChange={handleChange} className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-[#6b9b8e] focus:outline-none" />
-                  ) : (
-                    <div className="text-slate-900 font-medium px-4 py-2 bg-slate-50 rounded-lg border border-slate-100">{profile.officialEmail}</div>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-500 mb-1.5">Industry</label>
-                  {isEditing ? (
-                    <input type="text" name="industry" value={profile.industry} onChange={handleChange} className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-[#6b9b8e] focus:outline-none" />
-                  ) : (
-                    <div className="text-slate-900 font-medium px-4 py-2 bg-slate-50 rounded-lg border border-slate-100">{profile.industry}</div>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-500 mb-1.5">HR Contact Details</label>
-                  {isEditing ? (
-                    <input type="text" name="hrContact" value={profile.hrContact} onChange={handleChange} className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-[#6b9b8e] focus:outline-none" />
-                  ) : (
-                    <div className="text-slate-900 font-medium px-4 py-2 bg-slate-50 rounded-lg border border-slate-100">{profile.hrContact}</div>
-                  )}
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-slate-500 mb-1.5">Website</label>
-                  {isEditing ? (
-                    <input type="text" name="website" value={profile.website} onChange={handleChange} className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-[#6b9b8e] focus:outline-none" />
-                  ) : (
-                    <a href={profile.website} className="text-[#6b9b8e] hover:underline font-medium px-4 py-2 block bg-slate-50 rounded-lg border border-slate-100">{profile.website}</a>
-                  )}
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-slate-500 mb-1.5">Company Description</label>
-                  {isEditing ? (
-                    <textarea rows="3" name="description" value={profile.description} onChange={handleChange} className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-[#6b9b8e] focus:outline-none"></textarea>
-                  ) : (
-                    <div className="text-slate-900 font-medium px-4 py-3 bg-slate-50 rounded-lg border border-slate-100 min-h-[80px]">{profile.description}</div>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-500 mb-1.5">Internship Capacity</label>
-                  {isEditing ? (
-                    <input type="number" name="capacity" value={profile.capacity} onChange={handleChange} className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-[#6b9b8e] focus:outline-none" />
-                  ) : (
-                    <div className="text-slate-900 font-medium px-4 py-2 bg-slate-50 rounded-lg border border-slate-100">{profile.capacity}</div>
-                  )}
-                </div>
-
-              </div>
+            <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl text-slate-600 text-sm font-medium leading-relaxed">
+              Your organization is verified on the network. You are currently authorized to post requisitions and access the AI applicant pipeline. To update your core organization details, please contact network administration.
             </div>
           </div>
         </div>
-
       </div>
-    </DashboardLayout>
+    </div>
   );
 }

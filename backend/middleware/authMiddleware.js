@@ -29,4 +29,15 @@ const protect = async (req, res, next) => {
   }
 };
 
-module.exports = { protect };
+// THE ADMIN BOUNCER
+// Checks if the logged-in user (from the 'protect' middleware) is actually an Admin.
+const admin = (req, res, next) => {
+  if (req.user && req.user.role === 'Admin') {
+    next();
+  } else {
+    res.status(401).json({ message: 'Not authorized as an Admin. Security breach logged.' });
+  }
+};
+
+// Export BOTH middlewares
+module.exports = { protect, admin };

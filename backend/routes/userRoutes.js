@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const { protect } = require('../middleware/authMiddleware'); // IMPORTED
+const { protect } = require('../middleware/authMiddleware');
 
 // --- PUBLIC ROUTES ---
 
@@ -75,7 +75,42 @@ router.get('/me', protect, async (req, res) => {
   }
 });
 
+/**
+ * @desc    Update user profile (Skills, Phone, Address)
+ * @route   PUT /api/users/profile
+ * @access  Private
+ */
+router.put('/profile', protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+
+    if (user) {
+      // Update fields if they are provided in the request body, otherwise keep existing
+      user.phone = req.body.phone !== undefined ? req.body.phone : user.phone;
+      user.address = req.body.address !== undefined ? req.body.address : user.address;
+      user.skills = req.body.skills !== undefined ? req.body.skills : user.skills;
+
+      const updatedUser = await user.save();
+
+      res.status(200).json({
+        _id: updatedUser._id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        role: updatedUser.role,
+        phone: updatedUser.phone,
+        address: updatedUser.address,
+        skills: updatedUser.skills
+      });
+    } else {
+      res.status(404).json({ message: 'User not found in database.' });
+    }
+  } catch (error) {
+    res.status(500).json({ message: 'Engine failure: Profile update aborted.', error: error.message });
+  }
+});
+
 // GET: Fetch specific user profile (Now Protected)
+// Note: This must stay below /me and /profile
 router.get('/:id', protect, async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
@@ -86,4 +121,4 @@ router.get('/:id', protect, async (req, res) => {
   }
 });
 
-module.exports = router;  
+module.exports = router;

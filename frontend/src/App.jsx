@@ -1,5 +1,6 @@
 import React from 'react';
 import LegalPage from './components/LegalPage';
+import DashboardLayout from './components/DashboardLayout';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Register from './components/Register';
 
@@ -41,7 +42,7 @@ export default function App() {
       {/* 1. THE GLOBAL CANVAS: This ensures the gradient and blobs exist on EVERY page */}
       <div className="min-h-screen font-sans bg-gradient-to-br from-slate-100 via-emerald-50/50 to-slate-200 relative overflow-hidden flex flex-col">
         
-        {/* Abstract background blobs (pointer-events-none stops them from blocking clicks) */}
+        {/* Abstract background blobs */}
         <div className="absolute top-[-10%] left-[-10%] w-[40rem] h-[40rem] bg-emerald-300/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob pointer-events-none z-0"></div>
         <div className="absolute bottom-[-10%] right-[-10%] w-[40rem] h-[40rem] bg-[#6b9b8e]/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-2000 pointer-events-none z-0"></div>
 
@@ -56,26 +57,26 @@ export default function App() {
             <Route path="/terms" element={<LegalPage title="Terms of Service" />} />
             
             {/* THE STUDENT SITE */}
-            <Route path="/student/dashboard" element={<StudentDashboard />} />
-            <Route path="/student/opportunities" element={<Opportunities />} />
-            <Route path="/student/chat" element={<Chatbot />} />
-            <Route path="/student/applications" element={<StudentApplications />} />
-            <Route path="/student/profile" element={<StudentProfile />} />
-            <Route path="/student/ai" element={<StudentAI />} />
+            <Route path="/student/dashboard" element={<DashboardLayout role="Student"><StudentDashboard /></DashboardLayout>} />
+            <Route path="/student/opportunities" element={<DashboardLayout role="Student"><Opportunities /></DashboardLayout>}/>
+            <Route path="/student/chat" element={<DashboardLayout role="Student"><Chatbot /></DashboardLayout>} />
+            <Route path="/student/applications" element={<DashboardLayout role="Student"><StudentApplications /></DashboardLayout>} />
+            <Route path="/student/profile" element={<DashboardLayout role="Student"><StudentProfile /></DashboardLayout>} />
+            <Route path="/student/ai" element={<DashboardLayout role="Student"><StudentAI /></DashboardLayout>} />
 
             {/* THE COMPANY SITE */}
-            <Route path="/company/dashboard" element={<CompanyDashboard />} />
-            <Route path="/company/internships" element={<CompanyInternships />} />
-            <Route path="/company/post" element={<CompanyInternships />} />
-            <Route path="/company/applicants" element={<CompanyApplications />} />
-            <Route path="/company/profile" element={<CompanyProfile />} />
+            <Route path="/company/dashboard" element={<DashboardLayout role="Company"><CompanyDashboard /></DashboardLayout>} />
+            <Route path="/company/internships" element={<DashboardLayout role="Company"><CompanyInternships /></DashboardLayout>} />
+            <Route path="/company/post" element={<DashboardLayout role="Company"><CompanyInternships /></DashboardLayout>} />
+            <Route path="/company/applicants" element={<DashboardLayout role="Company"><CompanyApplications /></DashboardLayout>} />
+            <Route path="/company/profile" element={<DashboardLayout role="Company"><CompanyProfile /></DashboardLayout>} />
 
             {/* THE ADMIN SITE */}
-            <Route path="/admin/dashboard" element={<AdminDashboard />} />
-            <Route path="/admin/students" element={<AdminStudents />} />
-            <Route path="/admin/startups" element={<AdminStartups />} />
-            <Route path="/admin/announcements" element={<AdminAnnouncements />} />
-            <Route path="/admin/settings" element={<AdminSettings />} />
+            <Route path="/admin/dashboard" element={<DashboardLayout role="Admin"><AdminDashboard /></DashboardLayout>} />
+            <Route path="/admin/students" element={<DashboardLayout role="Admin"><AdminStudents /></DashboardLayout>} />
+            <Route path="/admin/startups" element={<DashboardLayout role="Admin"><AdminStartups /></DashboardLayout>} />
+            <Route path="/admin/announcements" element={<DashboardLayout role="Admin"><AdminAnnouncements /></DashboardLayout>} />
+            <Route path="/admin/settings" element={<DashboardLayout role="Admin"><AdminSettings /></DashboardLayout>} />
 
             {/* CATCH-ALL FOR BAD URLS */}
             <Route path="*" element={<NotFound />} />

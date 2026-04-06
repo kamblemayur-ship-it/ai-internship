@@ -1,6 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const adminRoutes = require('./routes/adminRoutes');
 require('dotenv').config();
 console.log("🔍 URI CHECK:", process.env.MONGO_URI);
 
@@ -28,6 +29,7 @@ mongoose.connect(process.env.MONGO_URI)
 app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/internships', require('./routes/internshipRoutes'));
 app.use('/api/applications', require('./routes/applicationRoutes'));
+app.use('/api/admin', adminRoutes);
 app.use('/api/ai', require('./routes/aiRoutes'));
 
 // Fallback health check

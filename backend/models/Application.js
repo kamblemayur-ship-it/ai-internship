@@ -19,7 +19,7 @@ const applicationSchema = new mongoose.Schema({
   matchScore: { 
     type: Number, 
     required: true 
-  }, // Frozen at the exact moment of application
+  },
   status: { 
     type: String, 
     enum: ['Pending', 'Reviewed', 'Accepted', 'Rejected'], 

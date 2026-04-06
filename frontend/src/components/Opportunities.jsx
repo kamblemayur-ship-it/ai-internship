@@ -1,116 +1,143 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import DashboardLayout from './DashboardLayout';
 
-export default function StudentOpportunities() {
-  const navigate = useNavigate();
-  const [internships, setInternships] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+export default function Opportunities() {
+  const [matches, setMatches] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [applyingTo, setApplyingTo] = useState(null); // Tracks which button is loading
+  const [applicationStatus, setApplicationStatus] = useState({}); // Tracks applied jobs
 
-  // Fetch ALL Active internships from the database
-  const fetchAllInternships = async () => {
+  useEffect(() => {
+    const fetchOpportunities = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        // Extract ID from token to feed the AI Engine
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        
+        // 1. Hit the AI Engine
+        const response = await fetch(`http://localhost:5000/api/ai/match/${payload.userId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          // The backend returns { student, matchesFound, matches: [...] }
+          setMatches(data.matches || []);
+        }
+      } catch (error) {
+        console.error("Failed to fetch AI matches:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOpportunities();
+  }, []);
+
+  const handleApply = async (jobId) => {
+    setApplyingTo(jobId);
+    
     try {
-      setIsLoading(true);
-      // We fixed the route to fetch only active jobs
-      const response = await fetch('http://localhost:5000/api/internships/');
+      const token = localStorage.getItem('token');
+      
+      // 2. Hit the Application Pipeline
+      const response = await fetch(`http://localhost:5000/api/applications/${jobId}`, { 
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      const data = await response.json();
+
       if (response.ok) {
-        const data = await response.json();
-        setInternships(data);
+        // Mark as successfully applied in the UI
+        setApplicationStatus(prev => ({ ...prev, [jobId]: 'Applied' }));
+      } else {
+        // Handle duplicates or errors
+        setApplicationStatus(prev => ({ ...prev, [jobId]: data.message }));
       }
     } catch (error) {
-      console.error("Failed to fetch all internships:", error);
+      setApplicationStatus(prev => ({ ...prev, [jobId]: 'Engine Error' }));
     } finally {
-      setIsLoading(false);
+      setApplyingTo(null);
     }
   };
 
-  useEffect(() => {
-    fetchAllInternships();
-  }, []);
+  if (loading) {
+    return <div className="p-10 text-slate-500 font-bold animate-pulse">Running AI Allocation Engine...</div>;
+  }
+
+  if (matches.length === 0) {
+    return <div className="p-10 text-slate-500">No active internships found.</div>;
+  }
 
   return (
-    <DashboardLayout role="Student">
-      <div className="p-8 max-w-7xl mx-auto space-y-8">
-        
-        <div className="flex justify-between items-end">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-slate-900">Internship Opportunities</h1>
-            <p className="text-sm text-slate-500 mt-1">Discover real roles tailored to your skills from our partner companies.</p>
-          </div>
-        </div>
-
-        {/* Dynamic AI Banner */}
-        <div className="bg-gradient-to-br from-emerald-50 to-teal-100 p-8 rounded-2xl border border-emerald-100 shadow flex flex-col items-center text-center">
-          <h2 className="text-xl font-semibold text-teal-900 mb-2">Smarter Matches with Allo</h2>
-          <p className="text-teal-700 mb-6 max-w-md">Let Allo analyze your profile and instantly curate the highest-probability matches for you.</p>
-          <button 
-            onClick={() => navigate('/student/chat')} 
-            className="flex items-center gap-2 bg-[#6b9b8e] hover:bg-[#5a8679] text-white font-medium px-6 py-3 rounded-full shadow-md hover:shadow-lg transition-all duration-200"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-            Ask Allo to Match Me
-          </button>
-        </div>
-
-        {/* Live Opportunities Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {isLoading ? (
-            <div className="col-span-3 text-center text-slate-500 py-10">Loading real opportunities...</div>
-          ) : internships.length === 0 ? (
-            <div className="col-span-3 text-center text-slate-500 py-10">No active internships posted by companies yet.</div>
-          ) : (
-            internships.map((job) => (
-              <div key={job._id} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col h-full relative">
-                
-                {/* Fixed Status Tag */}
-                <div className="absolute top-4 right-4 flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded-full border border-emerald-100">
-                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd"></path></svg>
-                  {job.status.toUpperCase()}
-                </div>
-
-                <div className="mb-4 pt-4 pr-16">
-                  {/* Fixed Title Case */}
-                  <h4 className="text-lg font-bold text-slate-900">{job.role}</h4>
-                  <p className="text-sm text-slate-500 font-medium">{job.companyName} • {job.location}</p>
-                </div>
-
-                {/* Fixed Skills Tags */}
-                <div className="flex flex-wrap gap-2 mb-6">
-                  {job.skills.map((skill, index) => (
-                    <span key={index} className="px-3 py-1 bg-slate-100 text-slate-600 text-[10px] font-bold rounded-full uppercase">
-                      {skill}
-                    </span>
-                  ))}
-                </div>
-
-                {/* Fixed Structural Layout */}
-                <div className="space-y-3 text-sm text-slate-500 mb-6 border-t border-slate-100 pt-5">
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium text-slate-500">Stipend:</span>
-                    <span className="font-bold text-[#6b9b8e]">{job.stipend}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium text-slate-500">Duration:</span>
-                    <span className="font-bold text-slate-800">{job.duration || 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium text-slate-500">Positions:</span>
-                    {/* Fixed Grammar: 1 Position / 2 Positions */}
-                    <span className="font-bold text-slate-800">{job.capacity} {job.capacity === 1 ? 'Position' : 'Positions'}</span>
-                  </div>
-                </div>
-
-                {/* Fixed Action Button */}
-                <div className="mt-auto">
-                  <button className="w-full py-2.5 bg-[#6b9b8e] hover:bg-[#5a8679] text-white rounded-lg font-semibold shadow transition-all">
-                    Apply Now
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
+    <div className="p-8 max-w-6xl mx-auto">
+      <div className="mb-8">
+        <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Top Opportunities</h1>
+        <p className="text-slate-500 font-medium mt-1">AI-curated matches based on your technical stack.</p>
       </div>
-    </DashboardLayout>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {matches.map((match) => (
+          <div key={match.jobId} className="bg-white/60 backdrop-blur-md border border-white shadow-sm rounded-2xl p-6 flex flex-col hover:shadow-md transition-shadow">
+            
+            {/* Header: Company & Match Score */}
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h2 className="text-xl font-bold text-slate-800">{match.role}</h2>
+                <p className="text-sm font-semibold text-[#6b9b8e]">{match.company}</p>
+              </div>
+              <div className="flex flex-col items-end">
+                <span className={`text-2xl font-black ${match.matchScore >= 80 ? 'text-emerald-600' : match.matchScore >= 50 ? 'text-amber-500' : 'text-slate-400'}`}>
+                  {match.matchScore}%
+                </span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Match</span>
+              </div>
+            </div>
+
+            {/* AI Insights Section */}
+            <div className="bg-slate-50/50 rounded-xl p-4 mb-6 border border-slate-100 flex-1">
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Engine Insights</h3>
+              <ul className="space-y-1.5">
+                {match.insights.map((insight, idx) => (
+                  <li key={idx} className="text-sm text-slate-600 font-medium flex items-start gap-2">
+                    <span className="text-[#6b9b8e] mt-0.5">✦</span>
+                    {insight}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Footer: Details & Action */}
+            <div className="flex items-center justify-between pt-4 border-t border-slate-200/50">
+              <div className="text-sm text-slate-500 font-medium">
+                {match.location && <span>📍 {match.location}</span>}
+                {match.location && match.stipend && <span className="mx-2">•</span>}
+                {match.stipend && <span>💰 {match.stipend}</span>}
+              </div>
+              
+              <button
+                onClick={() => handleApply(match.jobId)}
+                disabled={applyingTo === match.jobId || applicationStatus[match.jobId]}
+                className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all shadow-sm ${
+                  applicationStatus[match.jobId] === 'Applied' || applicationStatus[match.jobId]?.includes('already')
+                    ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
+                    : applicationStatus[match.jobId]
+                    ? 'bg-red-50 text-red-600 border border-red-200'
+                    : 'bg-[#6b9b8e] hover:bg-[#5a867a] text-white'
+                }`}
+              >
+                {applyingTo === match.jobId ? 'Applying...' : 
+                 applicationStatus[match.jobId] === 'Applied' ? 'Applied ✓' : 
+                 applicationStatus[match.jobId] ? 'Already Applied' : 
+                 'Apply Now'}
+              </button>
+            </div>
+            
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
