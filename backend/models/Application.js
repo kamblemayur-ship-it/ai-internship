@@ -1,25 +1,19 @@
 const mongoose = require('mongoose');
 
 const applicationSchema = new mongoose.Schema({
+  // Link to the student who clicked "Request Allocation"
   student: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'User', 
     required: true 
   },
-  job: { 
+  // Link to the specific job they applied for
+  internship: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'Internship', 
     required: true 
   },
-  company: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: 'User', 
-    required: true 
-  },
-  matchScore: { 
-    type: Number, 
-    required: true 
-  },
+  // The state of the application in the company's dashboard
   status: { 
     type: String, 
     enum: ['Pending', 'Reviewed', 'Accepted', 'Rejected'], 
@@ -30,8 +24,5 @@ const applicationSchema = new mongoose.Schema({
     default: Date.now 
   }
 });
-
-// Database-level protection: A student cannot apply to the exact same internship twice.
-applicationSchema.index({ student: 1, job: 1 }, { unique: true });
 
 module.exports = mongoose.model('Application', applicationSchema);
