@@ -4,14 +4,15 @@ export default function CompanyApplications() {
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // 1. Fetch the data from the backend
+  // 1. Fetch the data from the newly engineered backend route
   useEffect(() => {
     const fetchApplications = async () => {
       try {
         const token = localStorage.getItem('token');
         if (!token) return;
 
-        const response = await fetch('http://localhost:5000/api/applications/company', {
+        // 🚨 CORRECTED API URL to match your backend
+        const response = await fetch('http://localhost:5000/api/applications/company-dashboard', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
 
@@ -45,7 +46,6 @@ export default function CompanyApplications() {
       });
 
       if (response.ok) {
-        // Update the UI instantly without needing a page refresh
         setApplications(applications.map(app =>
           app._id === id ? { ...app, status: newStatus } : app
         ));
@@ -57,10 +57,8 @@ export default function CompanyApplications() {
     }
   };
 
-  // 3. Loading Screen
   if (loading) return <div className="p-10 font-bold text-slate-500 animate-pulse">Scanning Application Matrix...</div>;
 
-  // 4. Main UI Render
   return (
     <div className="p-8 max-w-6xl mx-auto space-y-8 animate-fade-in relative z-10">
       
@@ -85,7 +83,7 @@ export default function CompanyApplications() {
                 <tr className="bg-slate-100/50 border-b border-slate-200/50 text-xs uppercase tracking-widest text-slate-500">
                   <th className="p-5 font-bold">Candidate</th>
                   <th className="p-5 font-bold">Role</th>
-                  <th className="p-5 font-bold">AI Match</th>
+                  <th className="p-5 font-bold">AI Clearance</th>
                   <th className="p-5 font-bold text-center">Status</th>
                   <th className="p-5 font-bold text-right">Action</th>
                 </tr>
@@ -104,14 +102,13 @@ export default function CompanyApplications() {
                         </div>
                       </div>
                     </td>
-                    <td className="p-5 text-sm font-bold text-slate-700">{app.job?.role || 'Unknown Role'}</td>
+                    {/* 🚨 CORRECTED: Now reads app.internship.role instead of app.job.role */}
+                    <td className="p-5 text-sm font-bold text-slate-700">{app.internship?.role || 'Unknown Role'}</td>
                     <td className="p-5">
                       <div className="flex items-center gap-2">
-                        <span className={`text-sm font-black ${
-                          app.matchScore >= 80 ? 'text-emerald-600' :
-                          app.matchScore >= 50 ? 'text-amber-500' : 'text-red-500'
-                        }`}>
-                          {app.matchScore}%
+                        {/* 🚨 CORRECTED: Visual indicator that the AI Engine already verified them */}
+                        <span className="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded border border-emerald-100">
+                          ✓ Engine Verified
                         </span>
                       </div>
                     </td>

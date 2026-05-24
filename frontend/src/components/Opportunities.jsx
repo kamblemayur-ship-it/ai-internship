@@ -35,16 +35,20 @@ export default function Opportunities() {
     fetchOpportunities();
   }, []);
 
-  const handleApply = async (jobId) => {
+const handleApply = async (jobId) => {
     setApplyingTo(jobId);
     
     try {
       const token = localStorage.getItem('token');
       
-      // 2. Hit the Application Pipeline
-      const response = await fetch(`http://localhost:5000/api/applications/${jobId}`, { 
+      // 🚨 CORRECTED: Pointing to /apply and sending the ID in the body
+      const response = await fetch(`http://localhost:5000/api/applications/apply`, { 
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` 
+        },
+        body: JSON.stringify({ internshipId: jobId })
       });
 
       const data = await response.json();
@@ -52,16 +56,19 @@ export default function Opportunities() {
       if (response.ok) {
         // Mark as successfully applied in the UI
         setApplicationStatus(prev => ({ ...prev, [jobId]: 'Applied' }));
+        console.log("Success:", data.message);
       } else {
-        // Handle duplicates or errors
+        // Handle duplicates or errors (e.g. "Already requested allocation")
         setApplicationStatus(prev => ({ ...prev, [jobId]: data.message }));
+        console.error("Engine Rejection:", data.message);
       }
     } catch (error) {
       setApplicationStatus(prev => ({ ...prev, [jobId]: 'Engine Error' }));
+      console.error("Network crash:", error);
     } finally {
       setApplyingTo(null);
     }
-  };
+  };9
 
   if (loading) {
     return <div className="p-10 text-slate-500 font-bold animate-pulse">Running AI Allocation Engine...</div>;

@@ -16,6 +16,7 @@ router.post('/chat', protect, upload.single('resume'), async (req, res) => {
 
     // 2. FIXED DATABASE QUERY (Matching your exact schema)
     const liveInternships = await Internship.find().select('_id role companyName description skills');
+    console.log("DATABASE PAYLOAD TO AI:", liveInternships);
     
     if (!liveInternships || liveInternships.length === 0) {
         console.warn("Engine Warning: The MongoDB Internship collection is empty.");
